@@ -1,2 +1,2 @@
 # translate_surveys
- easily manage translation of survey questionnaires 
+ easily manage translation of (not only) Survey Solutions questionnaires 
