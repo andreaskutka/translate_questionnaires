@@ -11,8 +11,8 @@ The tool is set up to work with Survey Solutions translation templates, but can 
 ## Get started
 1. Create a copy of the [template translation sheet](https://docs.google.com/spreadsheets/d/1dX-Z8hy0Crq7_UYK8BTsoiavul9MorPkvoXtT8kAXW0) in Google Sheets.  
 1. Add columns for the source and target languages, and for managing the translation process. Have a look at the comments in the [template](https://docs.google.com/spreadsheets/d/1dX-Z8hy0Crq7_UYK8BTsoiavul9MorPkvoXtT8kAXW0), they provide more details.
-1. Set the sharing settings, such that everyone with a link can view (or edit). This is needed for the do-file to be able to download the template.
-1. Download the do-file and set it up following the instructions in the do-file. You will need the 
+1. Set the sharing settings such that everyone with a link can view (or edit). This is needed for the do-file to export the translation sheet.
+1. Download the [translate_questionnaires.do](translate_questionnaires.do) do-file and set it up following the instructions in the do-file. You will need the 
 [questionnaire IDs](questionnaire_id.PNG) from Survey Solutions and the [Google Sheet ID](google_doc.PNG) of your translation sheet.
 
 ## The do-file
