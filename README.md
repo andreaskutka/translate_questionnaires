@@ -1,7 +1,7 @@
 # translate questionnaires
 
 A tool to manage translations of (changing) Survey Solutions questionnaires. 
-* Translation work is done and stored in an __online spreadhseet__, allowing multiple translators to work on translating multiple target languages at the same time as the questionnaire is undergoing its final changes. This relaxes some of the time pressures around questionnaire translations during survey preparations.
+* Translations are done and stored in an __online spreadhseet__, allowing multiple translators to work on translating multiple target languages at the same time as the questionnaire is undergoing its final changes. This relaxes some of the time pressures around questionnaire translations during survey preparations.
 * A __STATA do-file__ creates the translation sheets for Survey Solution by matching the to be translated text with the source language in the online spreadsheet. Each string in the source language (e.g. answer option "YES") has to be translated only once, making translations a lot faster, less tedious and more consistent. 
 * If already-translated questions are modified in Survey Solutions, their translations will be removed automatically from the translation sheets the next time the do-file is run. The questionnaire designer is required to verify if updates to the target languages are needed. This eliminates the versioning nightmare and big source of mistakes when trying to juggle translations into several languages while questionnaires are being updated.
 * The tool makes it easy to overlap the work of question designers and translators. Questionnaires can be translated section by section as they are being finalised, providing more time to translators and questionnaire designers.   
