@@ -1,5 +1,5 @@
 /*==============================================================================
-	translate_surveys.do v1.0
+	translate_questionnaires.do v1.0
 ==============================================================================*/
 /* A tool to easily manage translations of (changing) Survey Solutions questionnaires.
 
