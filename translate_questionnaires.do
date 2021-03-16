@@ -147,6 +147,14 @@ Please report any bugs or feature requests on github or write to andreas.kutka@g
 
 	sort to_translate qnr temp_row
 	by to_translate: keep if _n==1 // only keep first occurance of the same english string
+	gen length=length(to_translate)
+	count if length > 2045 
+	if `r(N)' > 0{
+		br if length > 2045
+		di as err "String too long. Cannot exceed 2045 caharacters. Split text in Survey Soltuions, e.g. using static text."
+		exit 111
+	}
+	drop length	
 	if "`donttranslate'"!=""{
 		merge 1:1 to_translate using `donttranslate', keep(1) nogen // filter out rows from the don't translate tab			
 	}
