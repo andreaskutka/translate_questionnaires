@@ -12,27 +12,26 @@ Please report any bugs or feature requests on github or write to andreas.kutka@g
 	LET'S SET UP IT ALL UP (looks long, but only takes 5 minutes)
 =============================================================================*/			
 		
-/* STEP 1:	List the questionnaires you would like to translate using short, one-word names. 
-			The names do NOT need to correspond to the questionnaire name on Survey Solutions designer */
+/* STEP 1:	List the questionnaires you would like to translate using the names as they appear on Survey Solutions designer. 
+			Use quotes if names contain spaces, and composite quotes if there is more than one questionnaire (you can also just leave them for one qnr only)  */
 
-	local qnrs listing household // list (macro compatible) names of questionnaires to translate. For each, record 
-		
-/* STEP 2:	For each qnr, create a local called name_id containing the qnr ID from the Survey Solution Designer.  
-			You can copy the ID from the URL, while editing the questionnaire. This serves to download the template.*/
-		
-	local listing_id dea0ce438ce849ef890eedb9431a0f96 
-	local household_id 5267f81779b64dd69a1d0f75b3240153
-	
-/* STEP 3:	Define the directory where translation templates and outputs will be saved. */ 
+	local qnrs `" "translate_demo_household" "translate_demo_listing"  "' // // list (macro compatible) names of Survey Solution questionnaire translation templates to translate.		
+
+/* STEP 2	Define the directory where translation templates and outputs will be saved. */ 
 	
 	local transdir "${path}/translation"
-
+	
+/* STEP 3:	For each qnr, download the translation template from the Survey Solution Designer. 
+			Always download the template, do not download any existing translation.
+			Save the templates in the translation directory specified in Step 2. 
+			The names of the templates should follwo the follwoing pattern. "[New translation]QNR_NAME.xlsx" */
+		
 /* STEP 4:	Set up the translation sheet. Copy the Google sheet template & set sharing settings to view for those with link
 			https://docs.google.com/spreadsheets/d/1dX-Z8hy0Crq7_UYK8BTsoiavul9MorPkvoXtT8kAXW0 */
 
 	local google_doc 1dX-Z8hy0Crq7_UYK8BTsoiavul9MorPkvoXtT8kAXW0 // If you use a google sheet, copy the ID of the google sheet from the URL, comment out if not
 	local trans_excel="`transdir'/Translation_sheet.xlsx" // path and name of the Excel sheet into which the Google sheet will be exported, or name of Excel translation sheet if not using Google sheets
-	local trans_sheet translations // Name of the sheet continaing translations, must contain one column for the base lanaguage, one column for each target language
+	local trans_sheet translations // Name of the sheet continaing translations, must contain one column for the base language, one column for each target language
 	local trans_dont dont_translate // Name of the sheet and column title containing strings not to be translated
 
 /* STEP 5:	Specify the source language and targed language(s), using the column title of row 1 in the translation sheet. */
@@ -47,8 +46,9 @@ Please report any bugs or feature requests on github or write to andreas.kutka@g
 		
 /* STEP 7:	(Optionally) Write code in chapter 3 to drop any set of observations from the translation sheet that do not need to be 
 			translated. Dropped observations will not be considered as untranslated in the output if no string match 
-			is found in the translations sheet. By default this do-file ignores validation messages and interviewer instructions.*/
-		
+			is found in the translations sheet. By default this do-file ignores validation messages and interviewer instructions.
+			You can also drop entire sheets of the translation template, e.g. to not translate adminstrative names from cascading combo boxes. */
+	
 /*=============================================================================
 	1. INSTALL DEPENDENCIES
 =============================================================================*/		
@@ -102,29 +102,34 @@ Please report any bugs or feature requests on github or write to andreas.kutka@g
 	}
 	
 /*=============================================================================
-	3. FETCH TEMPLATES FROM SURVEY SOLUTIONS & MAKE TO-TRANSLATE SHEET
+	3. IMPORT TEMPLATES FROM SURVEY SOLUTIONS & MAKE TO-TRANSLATE SHEET
 =============================================================================*/	
 	clear
 	gen to_translate=""
-	tempfile  to_translate 
+	tempfile  to_translate one_template
 	save `to_translate'
+	save `one_template'
 	
 	cd "`transdir'"
 	foreach qnr in `qnrs' {
-		if "``qnr'_id'"==""{
-			di as err "local `qnr'_id for qnr `qnr' not specified (copy qnr ID from Designer URL)"
-			exit 111
+		import excel using "[New translation]`qnr'.xlsx", describe
+		local n_sheets `r(N_worksheet)'
+		forvalues i = 1/`n_sheets' {
+			local sheet`i'  `r(worksheet_`i')'
+		}	
+		forvalues i = 1/`n_sheets' {
+			import excel using "[New translation]`qnr'.xlsx", sheet("`sheet`i''") firstrow clear all
+			gen Sheet="`sheet`i''"
+			append using `one_template'
+			save `one_template', replace
 		}
-		
-		copy "https://designer.mysurvey.solutions/translations/``qnr'_id'/template" "template_`qnr'.xlsx", replace // donwload translation template
-		import excel "template_`qnr'.xlsx", clear sheet(Translations) firstrow
 		gen temp_row=_n
 
 // -- WRITE HERE CODE TO GENERATE A VARIABLE to_translate USED FOR STRING MATCHING TO THE TRANSLATION SHEET --
 
 		gen qn=regexm(Originaltext,"^S[0-9]+Q[0-9]+[A-Z]?. ")==1
 		gen qstnum=substr(Originaltext,1,strpos(Originaltext,". ")+1) if qn==1
-		gen to_translate=substr(Originaltext,strpos(Originaltext,". ")+2,length(Originaltext)) if qn==1
+		replace to_translate=substr(Originaltext,strpos(Originaltext,". ")+2,length(Originaltext)) if qn==1
 		replace to_translate=Originaltext if qn==0	
 		
 //-----------------------------------------------------------------------------------------------------------
@@ -142,6 +147,7 @@ Please report any bugs or feature requests on github or write to andreas.kutka@g
 
 	drop if Type=="Instruction" // instructions in questions 
 	drop if Type=="ValidationMessage" // validation messages
+	*drop if Sheet=="@@village" // drop all entries from sheet village, corresponding to answer options in question with varname village
 
 //----------------------------------------------------------------------------------------------------------	
 
@@ -158,13 +164,15 @@ Please report any bugs or feature requests on github or write to andreas.kutka@g
 	if "`donttranslate'"!=""{
 		merge 1:1 to_translate using `donttranslate', keep(1) nogen // filter out rows from the don't translate tab			
 	}
-	save `to_translate', replace		
+	save `to_translate', replace	
 
 /*==============================================================================
 	4. MAKE TRANSLATION FOR SURVEY SOLUTION
 ==============================================================================*/
 // merge translation sheet and templates on to_translate/source string, keep only matches and make Survey Solution translation sheets
 	local today=string(date("`c(current_date)'","DMY"),"%tdY-N-D")
+	local exp_vars EntityId Variable Type Index Originaltext Translation
+
 	foreach qnr in `qnrs' {
 		foreach lan in `target' {	
 			use ``qnr'_temp', clear	
@@ -179,18 +187,29 @@ Please report any bugs or feature requests on github or write to andreas.kutka@g
 				rename `lan' Translation
 				replace Translation=qstnum+Translation if qstnum!=""
 				sort temp_row
-				keep EntityId Variable Type Index Originaltext Translation
-				export excel using "`transdir'/[`lan']`qnr'-`today'.xlsx", replace firstrow(var) sheet(Translations)
+				
+				tempfile all_sheets
+				save `all_sheets', replace
+				
+				levelsof Sheet
+				foreach sheet in `r(levels)' {
+					use `all_sheets', clear
+					keep `exp_vars' Sheet
+					export excel `exp_vars' using "`transdir'/[`lan']`qnr'-`today'.xlsx" if Sheet== "`sheet'", ///
+						sheetreplace firstrow(var) sheet("`sheet'")
+					drop if _n>1
+					drop Sheet
+					replace EntityId="Entity Id"	
+					replace Variable="Variable"	
+					replace Type="Type"
+					capture tostring Index, replace
+					replace Index="Index"
+					replace Originaltext="Original text"
+					replace Translation="Translation"
+					export excel using "`transdir'/[`lan']`qnr'-`today'.xlsx", sheetmodify sheet("`sheet'")
+				}
 					
-				drop if _n>1
-				replace EntityId="Entity Id"	
-				replace Variable="Variable"	
-				replace Type="Type"
-				capture tostring Index, replace
-				replace Index="Index"
-				replace Originaltext="Original text"
-				replace Translation="Translation"
-				export excel using "`transdir'/[`lan']`qnr'-`today'.xlsx", sheetmodify sheet(Translations)
+
 			}
 		}
 	}
@@ -205,7 +224,8 @@ Please report any bugs or feature requests on github or write to andreas.kutka@g
 /*-- UNMATCHED: in template but not in translation sheet ---------------------------*/
 	use `to_translate', clear
 	merge 1:1 to_translate using `translations', keep(1) nogen
-	keep EntityId-to_translate `source' qnr
+
+	keep EntityId-to_translate `source' temp_row qnr
 	sort qnr temp_row
 	gen matchrow=_n
 	tempfile in_temp_not_trans
@@ -228,9 +248,9 @@ Please report any bugs or feature requests on github or write to andreas.kutka@g
 		save `similar', replace
 
 		merge m:1 trans_row using `in_trans_not_temp', keepusing(`target') keep(3) nogen
-		merge 1:1 matchrow using `in_temp_not_trans', keepusing(EntityId Variable Type Index to_translate qnr temp_row) keep(2 3) nogen update
+		merge 1:1 matchrow using `in_temp_not_trans', keepusing(EntityId Variable Type Index to_translate qnr Sheet temp_row) keep(2 3) nogen update
 		drop matchrow
-		order qnr temp_row EntityId Variable Type Index to_translate trans_row similscore
+		order qnr Sheet temp_row EntityId Variable Type Index to_translate trans_row similscore
 	}
 	else{
 		use `in_temp_not_trans', clear
